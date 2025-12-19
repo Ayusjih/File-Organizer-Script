@@ -1,91 +1,89 @@
-
 import os
 import shutil
 
-def get_unique_filename(directory, filename):
+def get_unique_path(destination_folder, filename):
     """
-    Generates a unique filename if the file already exists in the destination.
-    Example: 'image.jpg' -> 'image_1.jpg' -> 'image_2.jpg'
+    Handles duplicate names by appending a number if the file already exists.
+    Requirement: No file should be overwritten.
     """
     base, extension = os.path.splitext(filename)
     counter = 1
-    new_filename = filename
+    unique_filename = filename
     
-    # Check if file exists, if so, append a number
-    while os.path.exists(os.path.join(directory, new_filename)):
-        new_filename = f"{base}_{counter}{extension}"
+    while os.path.exists(os.path.join(destination_folder, unique_filename)):
+        unique_filename = f"{base}_{counter}{extension}"
         counter += 1
         
-    return new_filename
+    return os.path.join(destination_folder, unique_filename)
 
-def organize_files():
-    print("--- 📂 File Organizer Tool ---")
-    
-    # Step 1: Get folder path
-    folder_path = input("Enter folder path to organize: ").strip()
-    
-    # Remove quotes if user copied path as "C:\Path"
-    folder_path = folder_path.replace('"', '')
-
-    if not os.path.exists(folder_path):
-        print("❌ Error: The specified folder does not exist.")
+def organize_folder(target_path):
+    """
+    Scans a folder and moves files into subfolders based on their extensions.
+    """
+    if not os.path.isdir(target_path):
+        print(f"Error: The path '{target_path}' is not a valid directory.")
         return
 
-    print(f"\nScanning: {folder_path} ...")
+    print("Organizing...")
     
-    # Counters for summary
     files_moved = 0
     folders_created = set()
 
-    # Step 2: Scan Directory
     try:
-        items = os.listdir(folder_path)
-    except PermissionError:
-        print("❌ Error: Permission denied accessing this folder.")
-        return
+        # Scan all items in the directory
+        for item in os.listdir(target_path):
+            item_path = os.path.join(target_path, item)
 
-    for item in items:
-        source_path = os.path.join(folder_path, item)
+            # Ignore folders; only process files
+            if os.path.isfile(item_path):
+                # Extract extension (e.g., .pdf, .jpg)
+                _, extension = os.path.splitext(item)
+                
+                if not extension:
+                    extension = ".no_extension"
+                
+                # Format folder name (removing the dot and making it uppercase)
+                folder_name = extension[1:].upper() if extension.startswith('.') else extension.upper()
+                dest_folder_path = os.path.join(target_path, folder_name)
 
-        # Ignore directories, process only files
-        if os.path.isfile(source_path):
-            # Step 3: Extract Extension
-            # Handle files without extension (e.g., README)
-            if '.' not in item or item.startswith('.'):
-                extension = "OTHERS"
-            else:
-                extension = item.split('.')[-1].lower()
-            
-            # Skip the script itself if it's inside the folder
-            if item == "organizer.py":
-                continue
+                # Create folder dynamically if it doesn't exist
+                if not os.path.exists(dest_folder_path):
+                    os.makedirs(dest_folder_path)
+                    folders_created.add(folder_name)
 
-            # Target folder name (e.g., 'JPG', 'PDF')
-            target_folder_name = extension.upper()
-            target_folder_path = os.path.join(folder_path, target_folder_name)
-
-            # Step 4: Create Folder if not exists
-            if not os.path.exists(target_folder_path):
-                os.makedirs(target_folder_path)
-                folders_created.add(target_folder_name)
-
-            # Step 5: Move File Safely
-            # Handle Duplicate Names
-            final_filename = get_unique_filename(target_folder_path, item)
-            destination_path = os.path.join(target_folder_path, final_filename)
-
-            try:
-                shutil.move(source_path, destination_path)
+                # Move file safely with duplicate handling
+                final_dest_path = get_unique_path(dest_folder_path, item)
+                shutil.move(item_path, final_dest_path)
                 files_moved += 1
-                print(f"✅ Moved: {item} -> {target_folder_name}/{final_filename}")
-            except Exception as e:
-                print(f"❌ Error moving {item}: {e}")
 
-    # Step 6: Print Summary
-    print("\n--- 📊 Organization Summary ---")
-    print(f"Total Files Moved: {files_moved}")
-    print(f"Folders Created: {len(folders_created)} ({', '.join(folders_created)})")
-    print("🎉 Organization Complete!")
+        # Print summary
+        print("-" * 30)
+        print("Files moved successfully!")
+        print(f"Total files moved: {files_moved}")
+        print(f"Folders created: {len(folders_created)} ({', '.join(folders_created) if folders_created else 'None'})")
+        print("-" * 30)
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+def main():
+    while True:
+        print("\n--- File Organizer System ---")
+        print("1. Organize a Folder")
+        print("5. Exit System")
+        
+        choice = input("\nEnter choice: ")
+
+        if choice == '1':
+            path = input("Enter folder path to organize: ").strip()
+            # Clean path from quotes if user dragged and dropped folder
+            path = path.replace('"', '').replace("'", "")
+            organize_folder(path)
+        elif choice == '5':
+            print("Exiting System. Goodbye!")
+            break
+        else:
+            print("Invalid choice. Please enter 1 or 5.")
 
 if __name__ == "__main__":
-    organize_files()
+    main()
